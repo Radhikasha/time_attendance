@@ -88,6 +88,14 @@
   box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
 }
 
+.form-group input.invalid {
+  border-color: #e53e3e;
+}
+
+.form-group input.valid {
+  border-color: #38a169;
+}
+
 .password-label {
   display: flex;
   justify-content: space-between;
@@ -128,6 +136,21 @@
 
 .auth-button:active {
   transform: translateY(0);
+}
+
+.auth-button--disabled,
+.auth-button:disabled {
+  background-color: #cbd5e0;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.auth-button--disabled:hover,
+.auth-button:disabled:hover {
+  background-color: #cbd5e0;
+  transform: none;
+  box-shadow: none;
 }
 
 /* Footer */

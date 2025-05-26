@@ -4,6 +4,12 @@ const cors = require('cors');
 const morgan = require('morgan');
 require('dotenv').config();
 
+// Set JWT secret if not set
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = 'your_jwt_secret';
+  console.warn('WARNING: JWT_SECRET is not set. Using default secret for development.');
+}
+
 const app = express();
 
 // Logging middleware
@@ -56,7 +62,12 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dealsmart
 .then(() => console.log('MongoDB connected successfully'))
 .catch(err => console.error('MongoDB connection error:', err));
 
+// Add cookie parser
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
+
 // Routes
+app.use('/api/auth', require('./routes/testAuth'));  // Using test auth routes
 app.use('/api/properties', require('./routes/properties'));
 app.use('/api/clients', require('./routes/clients'));
 app.use('/api/meetings', require('./routes/meetings'));
