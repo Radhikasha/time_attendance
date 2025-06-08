@@ -48,12 +48,24 @@ router.patch('/:id', getClient, async (req, res) => {
 });
 
 // Delete client
-router.delete('/:id', getClient, async (req, res) => {
+router.delete('/:id', async (req, res) => {
+  console.log('Delete request received for client ID:', req.params.id);
   try {
-    await res.client.remove();
-    res.json({ message: 'Client deleted' });
+    const client = await Client.findByIdAndDelete(req.params.id);
+    console.log('Delete operation result:', client);
+    if (!client) {
+      console.log('Client not found with ID:', req.params.id);
+      return res.status(404).json({ message: 'Client not found', id: req.params.id });
+    }
+    console.log('Client deleted successfully:', client);
+    res.json({ message: 'Client deleted successfully' });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('Error deleting client:', err);
+    res.status(500).json({ 
+      message: 'Error deleting client', 
+      error: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 });
 

@@ -48,11 +48,56 @@ const ClientDetails = () => {
     fetchClient();
   }, [id]);
 
-  const handleDelete = () => {
-    if (window.confirm('Are you sure you want to delete this client? This action cannot be undone.')) {
-      // In a real app, you would call an API to delete the client
-      toast.success('Client deleted successfully');
-      navigate('/clients');
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this client? This action cannot be undone.')) {
+      console.log('Delete operation cancelled by user');
+      return;
+    }
+
+    console.log('Starting delete operation for client ID:', id);
+    
+    try {
+      console.log('Sending DELETE request to:', `http://localhost:5000/api/clients/${id}`);
+      const response = await fetch(`http://localhost:5000/api/clients/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include'  // Include cookies if using session-based auth
+      });
+
+      console.log('Response status:', response.status);
+      
+      let data;
+      try {
+        data = await response.json();
+        console.log('Response data:', data);
+      } catch (jsonError) {
+        console.error('Error parsing JSON response:', jsonError);
+        throw new Error('Invalid response from server');
+      }
+      
+      if (!response.ok) {
+        console.error('Delete failed with status:', response.status);
+        throw new Error(data.message || `Failed to delete client. Status: ${response.status}`);
+      }
+
+      console.log('Delete successful, showing success message');
+      toast.success(data.message || 'Client deleted successfully');
+      
+      // Navigate after a short delay to show the success message
+      setTimeout(() => {
+        console.log('Navigating to /clients');
+        navigate('/clients');
+      }, 1000);
+    } catch (error) {
+      console.error('Error in handleDelete:', {
+        error: error.toString(),
+        message: error.message,
+        stack: error.stack
+      });
+      toast.error(error.message || 'An error occurred while deleting the client');
     }
   };
 
