@@ -66,15 +66,28 @@ const Attendance = () => {
   const [orderBy, setOrderBy] = useState('date');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  // Initialize date range to current month
   const [dateFilter, setDateFilter] = useState({
     startDate: startOfMonth(new Date()),
     endDate: endOfMonth(new Date()),
   });
+  
+  // Handle date range change
+  const handleDateRangeChange = (field, date) => {
+    setDateFilter(prev => ({
+      ...prev,
+      [field]: date
+    }));
+  };
 
-  // Fetch attendance data on component mount
+  // Fetch attendance data on component mount and when date range changes
   useEffect(() => {
-    dispatch(getMyAttendance());
-  }, [dispatch]);
+    const params = {
+      startDate: format(dateFilter.startDate, 'yyyy-MM-dd'),
+      endDate: format(dateFilter.endDate, 'yyyy-MM-dd')
+    };
+    dispatch(getMyAttendance(params));
+  }, [dispatch, dateFilter]);
 
   // Handle check-in
   const handleCheckIn = async () => {
@@ -118,6 +131,9 @@ const Attendance = () => {
 
   // Filter and sort attendance data
   const filteredAttendance = React.useMemo(() => {
+    if (!attendance || !Array.isArray(attendance)) {
+      return [];
+    }
     return attendance
       .filter((record) => {
         // Filter by status
@@ -157,6 +173,27 @@ const Attendance = () => {
         return order === 'asc' ? comparison : -comparison;
       });
   }, [attendance, statusFilter, dateFilter, searchTerm, order, orderBy]);
+
+  // Calculate monthly summary
+  const monthlySummary = React.useMemo(() => {
+    const summary = filteredAttendance.reduce((acc, record) => {
+      acc.totalDays += 1;
+      if (record.status === 'present' || record.status === 'late') {
+        acc.workingDays += 1;
+      } else if (record.status === 'absent') {
+        acc.absences += 1;
+      }
+      if (record.totalHours) {
+        acc.totalHours += parseFloat(record.totalHours) || 0;
+      }
+      return acc;
+    }, { totalDays: 0, workingDays: 0, absences: 0, totalHours: 0 });
+
+    return {
+      ...summary,
+      averageHours: summary.workingDays > 0 ? (summary.totalHours / summary.workingDays).toFixed(1) : 0
+    };
+  }, [filteredAttendance]);
 
   // Get status chip color
   const getStatusChip = (status) => {
@@ -305,9 +342,7 @@ const Attendance = () => {
                 <DatePicker
                   label="Start Date"
                   value={dateFilter.startDate}
-                  onChange={(date) =>
-                    setDateFilter({ ...dateFilter, startDate: date })
-                  }
+                  onChange={(date) => handleDateRangeChange('startDate', date)}
                   renderInput={(params) => (
                     <TextField {...params} fullWidth variant="outlined" />
                   )}
@@ -319,14 +354,61 @@ const Attendance = () => {
                 <DatePicker
                   label="End Date"
                   value={dateFilter.endDate}
-                  onChange={(date) =>
-                    setDateFilter({ ...dateFilter, endDate: date })
-                  }
+                  onChange={(date) => handleDateRangeChange('endDate', date)}
                   renderInput={(params) => (
                     <TextField {...params} fullWidth variant="outlined" />
                   )}
                 />
               </LocalizationProvider>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+
+      {/* Monthly Summary */}
+      <Card sx={{ mb: 3 }}>
+        <CardHeader title="Monthly Summary" />
+        <CardContent>
+          <Grid container spacing={2}>
+            <Grid item xs={6} sm={4} md={2.4}>
+              <Box textAlign="center" p={2} bgcolor="#f5f5f5" borderRadius={2}>
+                <Typography variant="subtitle2" color="textSecondary">Total Days</Typography>
+                <Typography variant="h5" fontWeight="bold">
+                  {monthlySummary.totalDays}
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={6} sm={4} md={2.4}>
+              <Box textAlign="center" p={2} bgcolor="#e8f5e9" borderRadius={2}>
+                <Typography variant="subtitle2" color="textSecondary">Working Days</Typography>
+                <Typography variant="h5" fontWeight="bold" color="success.main">
+                  {monthlySummary.workingDays}
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={6} sm={4} md={2.4}>
+              <Box textAlign="center" p={2} bgcolor="#ffebee" borderRadius={2}>
+                <Typography variant="subtitle2" color="textSecondary">Absences</Typography>
+                <Typography variant="h5" fontWeight="bold" color="error.main">
+                  {monthlySummary.absences}
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={6} sm={6} md={2.4}>
+              <Box textAlign="center" p={2} bgcolor="#e3f2fd" borderRadius={2}>
+                <Typography variant="subtitle2" color="textSecondary">Total Hours</Typography>
+                <Typography variant="h5" fontWeight="bold">
+                  {monthlySummary.totalHours.toFixed(1)} hrs
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2.4}>
+              <Box textAlign="center" p={2} bgcolor="#f3e5f5" borderRadius={2}>
+                <Typography variant="subtitle2" color="textSecondary">Avg. Hours/Day</Typography>
+                <Typography variant="h5" fontWeight="bold">
+                  {monthlySummary.averageHours} hrs
+                </Typography>
+              </Box>
             </Grid>
           </Grid>
         </CardContent>

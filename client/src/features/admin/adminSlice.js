@@ -73,12 +73,22 @@ export const fetchEmployees = createAsyncThunk(
   'admin/fetchEmployees',
   async (_, { rejectWithValue }) => {
     try {
+      console.log('Fetching employees...');
       const response = await api.get('/admin/employees');
+      console.log('Employees response:', response.data);
       return response.data;
     } catch (error) {
+      console.error('Error fetching employees:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        headers: error.response?.headers
+      });
       return rejectWithValue({
         message: 'Failed to fetch employees',
-        details: error.response?.data || error.message
+        details: error.response?.data || error.message,
+        status: error.response?.status,
+        code: error.code
       });
     }
   }

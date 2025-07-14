@@ -16,7 +16,16 @@ import ResetPassword from './pages/auth/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import Attendance from './pages/Attendance';
 import Profile from './pages/Profile';
+import LeavePage from './pages/LeavePage';
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminAttendanceRequests from './pages/admin/AttendanceRequests';
+import AdminLeaveRequests from './pages/admin/LeaveRequests';
+import AdminEmployees from './pages/admin/Employees';
+import AdminEmployeeAttendance from './pages/admin/EmployeeAttendance';
 import NotFound from './pages/NotFound';
+
+// Layouts
+import AdminLayout from './layouts/AdminLayout';
 
 // Theme
 const theme = createTheme({
@@ -121,6 +130,24 @@ const App = () => {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="attendance" element={<Attendance />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="leaves" element={<LeavePage />} />
+        </Route>
+
+        {/* Admin Routes */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="employees" element={<AdminEmployees />} />
+          <Route path="employees/:employeeId/attendance" element={<AdminEmployeeAttendance />} />
+          <Route path="leaves" element={<AdminLeaveRequests />} />
+          <Route path="attendance-requests" element={<AdminAttendanceRequests />} />
         </Route>
 
         {/* 404 Route */}

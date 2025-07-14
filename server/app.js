@@ -8,6 +8,7 @@ const path = require('path');
 // Import routes
 const authRoutes = require('./routes/auth');
 const attendanceRoutes = require('./routes/attendance');
+const attendanceRequestRoutes = require('./routes/attendanceRequest');
 const adminRoutes = require('./routes/admin');
 const leaveRoutes = require('./routes/leaves');
 
@@ -64,6 +65,7 @@ app.get('/api/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/attendance/requests', attendanceRequestRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/leaves', leaveRoutes);
 

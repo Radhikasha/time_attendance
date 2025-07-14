@@ -180,6 +180,21 @@ const authSlice = createSlice({
       .addCase(resetPassword.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      // Handle updateUserProfile actions
+      .addCase(updateUserProfile.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.message = null;
+      })
+      .addCase(updateUserProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload.user; // Update the user data in the state
+        state.message = action.payload.message;
+      })
+      .addCase(updateUserProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });
@@ -187,11 +202,17 @@ const authSlice = createSlice({
 // Add updateUserProfile async thunk
 export const updateUserProfile = createAsyncThunk(
   'auth/updateProfile',
-  async ({ userId, userData }, { rejectWithValue }) => {
+  async (userData, { getState, rejectWithValue }) => {
     try {
+      const { auth } = getState();
       const token = localStorage.getItem('token');
+      
+      if (!auth.user?._id) {
+        return rejectWithValue('User not authenticated');
+      }
+      
       const response = await axios.put(
-        `${API_URL}/profile/${userId}`, 
+        `${API_URL}/profile/${auth.user._id}`, 
         userData,
         {
           headers: {
@@ -200,9 +221,19 @@ export const updateUserProfile = createAsyncThunk(
           }
         }
       );
-      return response.data;
+      
+      // Return both the updated user data and a success message
+      return { 
+        user: response.data.user,
+        message: 'Profile updated successfully!' 
+      };
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Update profile failed');
+      console.error('Update profile error:', error);
+      return rejectWithValue(
+        error.response?.data?.message || 
+        error.message || 
+        'Failed to update profile. Please try again.'
+      );
     }
   }
 );

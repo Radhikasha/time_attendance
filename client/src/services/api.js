@@ -76,11 +76,51 @@ export const authAPI = {
   updateLastLogin: (userId) => api.put(`/users/${userId}/last-login`),
 };
 
+// Attendance Request API
+export const attendanceRequestAPI = {
+  // User endpoints
+  createRequest: (data) => {
+    console.log('Creating attendance request with data:', data);
+    return api.post('/attendance/requests', data);
+  },
+  
+  getMyRequests: (params = {}) => {
+    console.log('Fetching my attendance requests with params:', params);
+    return api.get('/attendance/requests/me', { params });
+  },
+  
+  getRequestById: (id) => {
+    console.log('Fetching attendance request with ID:', id);
+    return api.get(`/attendance/requests/${id}`);
+  },
+  
+  updateRequestStatus: (id, status, comment) => {
+    console.log('Updating request status:', { id, status, comment });
+    return api.put(`/attendance/requests/${id}/status`, { status, adminComment: comment });
+  },
+  
+  // Admin endpoints
+  getAdminRequests: (status = 'pending') => {
+    console.log('Fetching admin attendance requests with status:', status);
+    return api.get('/admin/attendance-requests', { 
+      params: { status } 
+    });
+  },
+  
+  updateAdminRequestStatus: (requestId, status, comment) => {
+    console.log('Admin updating request status:', { requestId, status, comment });
+    return api.put(`/admin/attendance-requests/${requestId}`, { 
+      status, 
+      adminComment: comment 
+    });
+  }
+};
+
 // Attendance API
 export const attendanceAPI = {
   checkIn: (data) => api.post('/attendance/checkin', data),
-  checkOut: (attendanceId, data) => 
-    api.put(`/attendance/checkout/${attendanceId}`, data),
+  checkOut: (attendanceId, data = {}) => 
+    api.put('/attendance/checkout', { ...data, attendanceId }),
   getMyAttendance: (params) => 
     api.get('/attendance/me', { params }),
   getAllAttendance: (params) => 

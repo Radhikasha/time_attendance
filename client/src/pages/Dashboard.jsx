@@ -17,7 +17,20 @@ import {
   Snackbar,
   Alert,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  TableContainer,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Paper,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText
 } from '@mui/material';
 import AdminDashboard from '../features/admin/AdminDashboard';
 import {
@@ -31,7 +44,11 @@ import {
   Login as LoginIcon,
   Logout as LogoutIcon,
   Schedule as ScheduleIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  EventNote as EventNoteIcon,
+  PendingActions as PendingActionsIcon,
+  CheckCircleOutline as CheckCircleOutlineIcon,
+  Cancel as CancelIcon
 } from '@mui/icons-material';
 import { 
   checkIn, 
@@ -41,14 +58,131 @@ import {
 } from '../features/attendance/attendanceSlice';
 import { format, parseISO, differenceInHours, differenceInMinutes } from 'date-fns';
 
+// Mock data for leave requests - all start as 'pending' until approved by admin
+const mockLeaveRequests = [
+  {
+    id: 'LR-' + Math.floor(1000 + Math.random() * 9000),
+    type: 'Sick Leave',
+    startDate: '2025-07-10',
+    endDate: '2025-07-12',
+    status: 'pending',
+    submittedDate: new Date().toISOString().split('T')[0],
+    days: 3
+  },
+  {
+    id: 'LR-' + Math.floor(1000 + Math.random() * 9000),
+    type: 'Vacation',
+    startDate: '2025-07-20',
+    endDate: '2025-07-25',
+    status: 'pending',
+    submittedDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    days: 5
+  },
+  {
+    id: 'LR-' + Math.floor(1000 + Math.random() * 9000),
+    type: 'Personal Leave',
+    startDate: '2025-06-28',
+    endDate: '2025-06-28',
+    status: 'pending',
+    submittedDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    days: 1
+  }
+];
+
 const Dashboard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const theme = useTheme();
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [openLeaveStatus, setOpenLeaveStatus] = useState(false);
+  const [loadingLeaveRequests, setLoadingLeaveRequests] = useState(false);
+  
+  // Navigate to leave request page
+  const handleRequestLeave = () => {
+    setOpenLeaveStatus(false);
+    navigate('/attendance/request');
+  };
+  
+  // Open leave status dialog
+  const handleViewLeaveStatus = () => {
+    setOpenLeaveStatus(true);
+    fetchEmployeeLeaveRequests();
+  };
+  
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const d = new Date(dateString);
+    return d.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
+  
+  // Format date range for leave requests
+  const formatLeaveDate = (dateString) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+  
+  // Get status chip for leave request
+  const getStatusChip = (status) => {
+    const statusMap = {
+      pending: { label: 'Pending', color: 'warning', icon: <PendingActionsIcon /> },
+      approved: { label: 'Approved', color: 'success', icon: <CheckCircleOutlineIcon /> },
+      rejected: { label: 'Rejected', color: 'error', icon: null }
+    };
+    
+    const statusInfo = statusMap[status] || { label: 'Unknown', color: 'default' };
+    
+    return (
+      <Chip
+        label={statusInfo.label}
+        color={statusInfo.color}
+        icon={statusInfo.icon}
+        variant="outlined"
+        size="small"
+        sx={{ minWidth: 100 }}
+      />
+    );
+  };
   
   const { user } = useSelector((state) => state.auth);
   const { attendance, todayAttendance, loading, error } = useSelector((state) => state.attendance);
+  
+  // Fetch employee's leave requests
+  const fetchEmployeeLeaveRequests = async () => {
+    if (!user) return;
+    
+    setLoadingLeaveRequests(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5002/api/leaves/employee/${user._id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch leave requests');
+      }
+      
+      const data = await response.json();
+      setLeaveRequests(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching leave requests:', error);
+      showSnackbar('Failed to load leave requests', 'error');
+    } finally {
+      setLoadingLeaveRequests(false);
+    }
+  };
   
   const [isLoading, setIsLoading] = useState(false);
   const [recentActivities, setRecentActivities] = useState([]);
@@ -90,7 +224,27 @@ const Dashboard = () => {
   const handleCheckOut = async () => {
     try {
       setIsLoading(true);
-      await dispatch(checkOut()).unwrap();
+      
+      // Make sure we have the latest attendance data
+      await dispatch(getMyAttendance());
+      
+      // Get the current attendance record
+      const currentAttendance = todayAttendance;
+      
+      if (!currentAttendance?._id) {
+        throw new Error('No active check-in found for today');
+      }
+      
+      if (currentAttendance.checkOut) {
+        throw new Error('You have already checked out today');
+      }
+      
+      // Call checkOut with the attendance ID
+      await dispatch(checkOut(currentAttendance._id)).unwrap();
+      
+      // Refresh the attendance data
+      await dispatch(getMyAttendance());
+      
       showSnackbar('Checked out successfully', 'success');
     } catch (error) {
       console.error('Check-out failed:', error);
@@ -100,8 +254,8 @@ const Dashboard = () => {
     }
   };
 
-  // Format date for display
-  const formatDate = (dateString) => {
+  // Format attendance date for display
+  const formatAttendanceDate = (dateString) => {
     if (!dateString) return '--/--/----';
     try {
       return format(parseISO(dateString), 'MM/dd/yyyy');
@@ -109,6 +263,15 @@ const Dashboard = () => {
       console.error('Error formatting date:', error);
       return '--/--/----';
     }
+  };
+
+  // Toggle leave status dialog
+  const handleOpenLeaveStatus = () => {
+    setOpenLeaveStatus(true);
+  };
+
+  const handleCloseLeaveStatus = () => {
+    setOpenLeaveStatus(false);
   };
 
   // Format time for display
@@ -135,7 +298,7 @@ const Dashboard = () => {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
 
-  // Get current status
+  // Get current attendance status
   const getCurrentStatus = () => {
     if (!todayAttendance) return 'not_checked_in';
     if (todayAttendance.checkOut) return 'checked_out';
@@ -144,8 +307,8 @@ const Dashboard = () => {
 
   const currentStatus = getCurrentStatus();
 
-  // Get status icon
-  const getStatusIcon = (status) => {
+  // Get attendance status icon
+  const getAttendanceStatusIcon = (status) => {
     switch (status) {
       case 'checked_in':
         return <LoginIcon color="primary" />;
@@ -155,6 +318,19 @@ const Dashboard = () => {
         return <EventBusyIcon color="error" />;
       default:
         return <ScheduleIcon color="disabled" />;
+    }
+  };
+  
+  // Get leave request status icon
+  const getLeaveStatusIcon = (status) => {
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return <CheckCircleOutlineIcon color="success" sx={{ mr: 1 }} />;
+      case 'rejected':
+        return <CancelIcon color="error" sx={{ mr: 1 }} />;
+      case 'pending':
+      default:
+        return <PendingActionsIcon color="warning" sx={{ mr: 1 }} />;
     }
   };
 
@@ -197,6 +373,76 @@ const Dashboard = () => {
     if (user?.role !== 'admin') {
       fetchAttendance();
     }
+  }, [dispatch, user?.role]);
+
+  // Fetch admin dashboard data
+  const fetchAdminDashboardData = async () => {
+    try {
+      // This would typically be an API call to fetch admin dashboard data
+      // For now, we'll just log to console
+      console.log('Fetching admin dashboard data...');
+      // Replace with actual API call:
+      // const response = await fetch('/api/admin/dashboard');
+      // const data = await response.json();
+      // return data;
+    } catch (error) {
+      console.error('Error fetching admin dashboard data:', error);
+      throw error;
+    }
+  };
+
+  // Fetch attendance data for non-admin users
+  const fetchAttendanceData = async () => {
+    try {
+      // This would typically be an API call to fetch user's attendance data
+      // For now, we'll just log to console
+      console.log('Fetching attendance data...');
+      // Replace with actual API call:
+      // const response = await fetch('/api/attendance');
+      // const data = await response.json();
+      // return data;
+    } catch (error) {
+      console.error('Error fetching attendance data:', error);
+      throw error;
+    }
+  };
+
+  // Fetch recent activities for the user
+  const fetchRecentActivities = async () => {
+    try {
+      // This would typically be an API call to fetch user's recent activities
+      // For now, we'll just log to console
+      console.log('Fetching recent activities...');
+      // Replace with actual API call:
+      // const response = await fetch('/api/activities/recent');
+      // const data = await response.json();
+      // setRecentActivities(data);
+      // return data;
+    } catch (error) {
+      console.error('Error fetching recent activities:', error);
+      throw error;
+    }
+  };
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        if (user?.role === 'admin') {
+          await fetchAdminDashboardData();
+        } else {
+          await Promise.all([
+            fetchAttendanceData(),
+            fetchRecentActivities(),
+            fetchEmployeeLeaveRequests()
+          ]);
+        }
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+        // Handle error (e.g., show error message to user)
+      }
+    };
+
+    loadData();
   }, [dispatch, user?.role]);
 
   // If user is admin, render AdminDashboard
@@ -244,7 +490,7 @@ const Dashboard = () => {
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
           {snackbar.message}
         </Alert>
       </Snackbar>
@@ -325,6 +571,27 @@ const Dashboard = () => {
                   >
                     {isLoading ? <CircularProgress size={24} /> : 'Clock Out'}
                   </Button>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    size="large"
+                    startIcon={<EventNoteIcon />}
+                    onClick={handleRequestLeave}
+                    fullWidth
+                    sx={{ mb: 1 }}
+                  >
+                    Request Leave
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    size="large"
+                    startIcon={<PendingActionsIcon />}
+                    onClick={handleViewLeaveStatus}
+                    fullWidth
+                  >
+                    View Leave Status
+                  </Button>
                 </Box>
               </Box>
             </CardContent>
@@ -359,7 +626,7 @@ const Dashboard = () => {
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="subtitle2" color="text.secondary">Status</Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {getStatusIcon(todayAttendance.status)}
+                      {getAttendanceStatusIcon(todayAttendance.status)}
                       <Typography variant="body2" sx={{ ml: 1, textTransform: 'capitalize' }}>
                         {todayAttendance.status}
                       </Typography>
@@ -372,7 +639,8 @@ const Dashboard = () => {
         </Grid>
       </Grid>
 
-      {/* Stats Cards */}
+
+ {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
@@ -435,7 +703,135 @@ const Dashboard = () => {
           </Card>
         </Grid>
       </Grid>
-      
+
+      {/* Leave Status Button */}
+      <Grid container spacing={3} sx={{ mb: 2, mt: 2 }}>
+        <Grid item xs={12}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<EventNoteIcon />}
+            onClick={handleOpenLeaveStatus}
+            fullWidth
+            sx={{
+              py: 1.5,
+              fontSize: '1rem',
+              fontWeight: 'bold',
+              borderRadius: 2,
+              boxShadow: 2,
+              '&:hover': {
+                boxShadow: 4,
+              },
+            }}
+          >
+            View Leave Request Status
+          </Button>
+        </Grid>
+      </Grid>
+
+      {/* Leave Request Status Dialog */}
+      <Dialog 
+        open={openLeaveStatus} 
+        onClose={() => setOpenLeaveStatus(false)} 
+        maxWidth="lg" 
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <span>My Leave Requests</span>
+            <Button 
+              variant="outlined" 
+              size="small" 
+              startIcon={<RefreshIcon />}
+              onClick={fetchEmployeeLeaveRequests}
+              disabled={loadingLeaveRequests}
+            >
+              Refresh
+            </Button>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {loadingLeaveRequests ? (
+            <Box display="flex" justifyContent="center" p={4}>
+              <CircularProgress />
+            </Box>
+          ) : leaveRequests.length > 0 ? (
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Leave Type</TableCell>
+                    <TableCell>Date Range</TableCell>
+                    <TableCell>Duration</TableCell>
+                    <TableCell>Reason</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Submitted On</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {leaveRequests.map((request) => (
+                    <TableRow key={request._id} hover>
+                      <TableCell>{request.leaveType}</TableCell>
+                      <TableCell>
+                        {formatLeaveDate(request.startDate)} - {formatLeaveDate(request.endDate)}
+                      </TableCell>
+                      <TableCell>
+                        {Math.ceil((new Date(request.endDate) - new Date(request.startDate)) / (1000 * 60 * 60 * 24)) + 1} days
+                      </TableCell>
+                      <TableCell sx={{ maxWidth: 200 }}>
+                        <Typography noWrap>{request.reason}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        {getStatusChip(request.status)}
+                      </TableCell>
+                      <TableCell>
+                        {formatDate(request.createdAt)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Box textAlign="center" p={4}>
+              <EventNoteIcon color="disabled" sx={{ fontSize: 60, mb: 2 }} />
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                No Leave Requests Found
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                You haven't submitted any leave requests yet.
+              </Typography>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => {
+                  setOpenLeaveStatus(false);
+                  navigate('/attendance/request');
+                }}
+                sx={{ mt: 2 }}
+                startIcon={<EventNoteIcon />}
+              >
+                Request Leave
+              </Button>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenLeaveStatus(false)}>Close</Button>
+          <Button 
+            variant="contained" 
+            color="primary"
+            onClick={() => {
+              setOpenLeaveStatus(false);
+              navigate('/attendance/request');
+            }}
+            startIcon={<EventNoteIcon />}
+          >
+            New Leave Request
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Quick Stats and Recent Activities */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} md={4}>
@@ -465,7 +861,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </Grid>
-      
+
         {/* Recent Activities */}
         <Grid item xs={12} md={8}>
           <Card elevation={3} sx={{ height: '100%' }}>
@@ -479,7 +875,7 @@ const Dashboard = () => {
                     <React.Fragment key={activity._id || index}>
                       <ListItem>
                         <ListItemIcon>
-                          {getStatusIcon(activity.status)}
+                          {getAttendanceStatusIcon(activity.status || currentStatus)}
                         </ListItemIcon>
                         <ListItemText
                           primary={`${formatDate(activity.date)} - ${activity.status || 'N/A'}`}

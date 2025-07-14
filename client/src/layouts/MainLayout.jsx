@@ -28,6 +28,7 @@ import {
   Logout as LogoutIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  Schedule as ScheduleIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
