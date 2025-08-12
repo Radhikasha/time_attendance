@@ -1,0 +1,28 @@
+[2025-07-06T09:06:41.148Z] === Starting Debug Server ===
+[2025-07-06T09:06:41.151Z] Node.js version: v22.14.0
+[2025-07-06T09:06:41.152Z] Current directory: C:\Users\DELL\Desktop\time-attendance\server
+[2025-07-06T09:06:41.161Z] Express application initialized
+[2025-07-06T09:06:41.165Z] Express JSON middleware added
+[2025-07-06T09:06:41.167Z] Attempting to connect to MongoDB...
+[2025-07-06T09:06:41.239Z] ✅ Successfully connected to MongoDB
+[2025-07-06T09:06:41.244Z] 
+=== Server is running ===
+[2025-07-06T09:06:41.245Z] Node.js: v22.14.0
+[2025-07-06T09:06:41.245Z] Server: http://localhost:5004
+[2025-07-06T09:06:41.245Z] 
+Press Ctrl+C to stop
+
+[2025-07-06T09:07:52.867Z] === Starting Debug Server ===
+[2025-07-06T09:07:52.871Z] Node.js version: v22.14.0
+[2025-07-06T09:07:52.871Z] Current directory: C:\Users\DELL\Desktop\time-attendance\server
+[2025-07-06T09:07:52.879Z] Express application initialized
+[2025-07-06T09:07:52.885Z] Express JSON middleware added
+[2025-07-06T09:07:52.886Z] Attempting to connect to MongoDB...
+[2025-07-06T09:07:52.963Z] ✅ Successfully connected to MongoDB
+[2025-07-06T09:07:52.973Z] 
+=== Server is running ===
+[2025-07-06T09:07:52.974Z] Node.js: v22.14.0
+[2025-07-06T09:07:52.974Z] Server: http://localhost:5004
+[2025-07-06T09:07:52.974Z] 
+Press Ctrl+C to stop
+
